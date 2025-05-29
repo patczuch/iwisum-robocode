@@ -1,10 +1,13 @@
 package agh.reinforced.actions;
 
-import agh.reinforced.ParametrizedAction;
+import agh.reinforced.RobotAction;
 import robocode.Robot;
 
-public class TurnRight extends ParametrizedAction {
-    public TurnRight(double angle) { super(angle); }
+public class TurnRight implements RobotAction {
+    private final double value;
+    public TurnRight(double value) {
+        this.value = value;
+    }
     @Override
     public void invoke(Robot robot) { robot.turnRight(value); }
 }

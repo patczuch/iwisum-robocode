@@ -1,90 +1,84 @@
 package agh.reinforced;
 
-import robocode.Robot;
 import java.io.Serializable;
 import java.util.Objects;
 
 public class Observation implements Serializable {
-
-    private static final int BUCKETS = 10;
-    private static final int MIN_ENERGY = 0;
-    private static final int MAX_ENERGY = 100;
-    private static final int MIN_ANGLE = 0;
-    private static final int MAX_ANGLE = 360;
-
-    private final double posX;
-    private final double posY;
+    private final double enemyDistance;
     private final double energy;
     private final double heading;
-    private final double gunHeading;
-    private final Boolean zeroBearing;
+    private final double relativeGunHeading;
+    private final double enemyBearing;
+    private final boolean enemyEnergyLoss;
+    private final double originalRelativeGunHeading;
 
-    private transient final HashCalculator hashCalculator;
+    public Observation(double enemyDistance, double energy, double heading, double relativeGunHeading, double enemyBearing,
+                       boolean enemyEnergyLoss) {
+        this.enemyDistance = bucket(0, 1, 5, enemyDistance);
+        this.energy = bucket(0, 100, 3, energy);
+        this.heading = bucket(0, 360, 4, heading);
+        this.relativeGunHeading = bucket(-180, 180, 8, relativeGunHeading);
+        this.enemyBearing = bucket(-180, 180, 8, enemyBearing);
+        this.enemyEnergyLoss = enemyEnergyLoss;
+        this.originalRelativeGunHeading = relativeGunHeading;
+    }
 
-    public Observation(Robot robot, double posX, double posY, double energy, double heading, double gunHeading, Boolean zeroBearing) {
-        this.posX = posX;
-        this.posY = posY;
-        this.energy = energy;
-        this.heading = heading;
-        this.gunHeading = gunHeading;
-        this.zeroBearing = zeroBearing;
-        this.hashCalculator = new HashCalculator(robot);
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Observation that = (Observation) o;
+        return Double.compare(that.enemyDistance, enemyDistance) == 0 &&
+                Double.compare(that.energy, energy) == 0 &&
+                Double.compare(that.heading, heading) == 0 &&
+                Double.compare(that.relativeGunHeading, relativeGunHeading) == 0 &&
+                Double.compare(that.enemyBearing, enemyBearing) == 0;
     }
 
     @Override
     public int hashCode() {
-        return hashCalculator.hash(this);
+        return Objects.hash(enemyDistance, energy, heading, relativeGunHeading, enemyBearing);
     }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!(obj instanceof Observation other)) return false;
-        return Double.compare(posX, other.posX) == 0
-                && Double.compare(posY, other.posY) == 0
-                && Double.compare(energy, other.energy) == 0
-                && Double.compare(heading, other.heading) == 0
-                && Double.compare(gunHeading, other.gunHeading) == 0
-                && Objects.equals(zeroBearing, other.zeroBearing);
+    public double distanceTo(Observation other) {
+        double d1 = (this.enemyDistance - other.enemyDistance) / 5;
+        double d2 = (this.energy - other.energy) / 3;
+        double d3 = (this.heading - other.heading) / 4;
+        double d4 = (this.relativeGunHeading - other.relativeGunHeading) / 8;
+        double d5 = (this.enemyBearing - other.enemyBearing) / 8;
+        double enemyEnergyLoss = other.enemyEnergyLoss == this.enemyEnergyLoss ? 0 : 1;
+        return Math.sqrt(d1 * d1 + d2 * d2 + d3 * d3 + d4 * d4 + d5 * d5 + enemyEnergyLoss);
     }
 
-    private static class HashCalculator implements Serializable {
-        private final int minX = 0;
-        private final int maxX;
-        private final int minY = 0;
-        private final int maxY;
-        private final int buckets = BUCKETS;
+    private int bucket(int min, int max, int buckets, double value) {
+        return (int) ((value - min) * buckets / (max - min));
+    }
 
-        public HashCalculator(Robot robot) {
-            maxX = (int) robot.getBattleFieldWidth();
-            maxY = (int) robot.getBattleFieldHeight();
-        }
+    public double getEnemyDistance() {
+        return enemyDistance;
+    }
 
-        public int hash(Observation obs) {
-            if (obs.zeroBearing != null) {
-                return Objects.hash(
-                        bucket(minX, maxX, obs.posX),
-                        bucket(minY, maxY, obs.posY),
-                        bucket(MIN_ENERGY, MAX_ENERGY, obs.energy),
-                        bucket(MIN_ANGLE, MAX_ANGLE, obs.heading),
-                        bucket(MIN_ANGLE, MAX_ANGLE, obs.gunHeading),
-                        obs.zeroBearing
-                );
-            }
-            return Objects.hash(
-                    bucket(minX, maxX, obs.posX),
-                    bucket(minY, maxY, obs.posY),
-                    bucket(MIN_ENERGY, MAX_ENERGY, obs.energy),
-                    bucket(MIN_ANGLE, MAX_ANGLE, obs.heading),
-                    bucket(MIN_ANGLE, MAX_ANGLE, obs.gunHeading)
-            );
-        }
+    public double getEnergy() {
+        return energy;
+    }
 
-        private int bucket(int min, int max, double value) {
-            int span = max - min;
-            int bucketSpan = span / buckets;
-            int offset = (int) (value - min);
-            return offset / bucketSpan;
-        }
+    public double getHeading() {
+        return heading;
+    }
+
+    public double getRelativeGunHeading() {
+        return relativeGunHeading;
+    }
+
+    public double getOriginalRelativeGunHeading() {
+        return originalRelativeGunHeading;
+    }
+
+    public double getEnemyBearing() {
+        return enemyBearing;
+    }
+
+    public boolean isEnemyEnergyLoss() {
+        return enemyEnergyLoss;
     }
 }

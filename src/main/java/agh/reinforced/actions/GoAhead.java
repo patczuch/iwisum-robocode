@@ -1,10 +1,13 @@
 package agh.reinforced.actions;
 
-import agh.reinforced.ParametrizedAction;
+import agh.reinforced.RobotAction;
 import robocode.Robot;
 
-public class GoAhead extends ParametrizedAction {
-    public GoAhead(double dist) { super(dist); }
+public class GoAhead implements RobotAction {
+    private final double value;
+    public GoAhead(double value) {
+        this.value = value;
+    }
     @Override
     public void invoke(Robot robot) { robot.ahead(value); }
 }
