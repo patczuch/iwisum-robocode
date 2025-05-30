@@ -29,7 +29,7 @@ public class Observation implements Serializable {
         //System.out.println("GH " + relativeGunHeading + " " + this.relativeGunHeading);
         this.enemyBearing = bucket(-180, 180, ENEMY_BEARING_BUCKETS, enemyBearing);
         this.enemyEnergyLoss = enemyEnergyLoss;
-        this.zeroBearing = Math.abs(relativeGunHeading) < 5;
+        this.zeroBearing = Math.abs(relativeGunHeading) < 3;
     }
 
     @Override

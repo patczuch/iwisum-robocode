@@ -80,9 +80,9 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
             totalReward += event.reward;
         }
 
-        if (action.getClass().equals(Fire.class)) {
-            totalReward += 100;
-        }
+//        if (action.getClass().equals(Fire.class)) {
+//            totalReward += 100;
+//        }
 
         if (action.getClass().equals(TurnGunRight.class) || action.getClass().equals(TurnGunLeft.class)) {
             if (enemyVisible) {
@@ -94,13 +94,6 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
         if (last != null) {
             if (action.getClass().equals(TurnGunRight.class) || action.getClass().equals(TurnGunLeft.class)) {
                 totalReward += (1 - Math.abs(normalizeBearing(getHeading() - getGunHeading() + last.getBearing()) / 180)) * 100;
-            }
-            if (action.getClass().equals(GoAhead.class) || action.getClass().equals(GoBack.class)) {
-                if (Math.abs(last.getDistance()) > 50 && Math.abs(last.getDistance()) < 100) {
-                    totalReward += 600;
-                } else {
-                    totalReward -= 200;
-                }
             }
         }
         events.clear();
@@ -148,18 +141,19 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
         }
 
         if (obs.getZeroBearing() && random.nextDouble() < 0.5) {
-            return new Fire(1.5 + random.nextGaussian());
+            return new Fire(1 + random.nextInt(4) * 0.5);
         }
 
         if (random.nextDouble() < experimentRate || rewards == null || rewards.isEmpty()) {
             //out.println("random");
-            return switch (random.nextInt(6)) {
+            return switch (random.nextInt(7)) {
                 case 0 -> new GoAhead(random.nextInt(10) * 5);
                 case 1 -> new TurnGunLeft(random.nextInt(9) * 5);
                 case 2 -> new TurnGunRight(random.nextInt(9) * 5);
                 case 3 -> new TurnLeft(random.nextInt(9) * 5);
                 case 4 -> new TurnRight(random.nextInt(9) * 5);
                 case 5 -> new GoBack(random.nextInt(10) * 5);
+                case 6 -> new Fire(1 + random.nextInt(4) * 0.5);
                 default -> null;
             };
         }
