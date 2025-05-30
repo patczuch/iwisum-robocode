@@ -52,22 +52,23 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
     }
 
     private void loadKnowledge() {
-        File file = getDataFile(KNOWLEDGE_FILE);
-        if (file.exists()) {
-            try (ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
-                Q = (Map<Observation, Map<RobotAction, Double>>) ois.readObject();
-            } catch (Exception e) {
-                out.println("Exception loading knowledge");
-                e.printStackTrace();
-                Q = new HashMap<>();
-            }
-        }
+//        File file = getDataFile(KNOWLEDGE_FILE);
+//        if (file.exists()) {
+//            try (ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
+//                Q = (Map<Observation, Map<RobotAction, Double>>) ois.readObject();
+//            } catch (Exception e) {
+//                out.println("Exception loading knowledge");
+//                e.printStackTrace();
+//                Q = new HashMap<>();
+//            }
+//        }
     }
 
     private void saveKnowledge() {
         try (ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(
                 new RobocodeFileOutputStream(getDataFile(KNOWLEDGE_FILE))))) {
             oos.writeObject(Q);
+            oos.fluFsh();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

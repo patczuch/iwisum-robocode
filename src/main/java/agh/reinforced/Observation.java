@@ -26,7 +26,6 @@ public class Observation implements Serializable {
         this.energy = bucket(0, 100, ENERGY_BUCKETS, energy);
         this.heading = bucket(0, 360, HEADING_BUCKETS, heading);
         this.relativeGunHeading = bucket(-180, 180, GUN_HEADING_BUCKETS, relativeGunHeading);
-        //System.out.println("GH " + relativeGunHeading + " " + this.relativeGunHeading);
         this.enemyBearing = bucket(-180, 180, ENEMY_BEARING_BUCKETS, enemyBearing);
         this.enemyEnergyLoss = enemyEnergyLoss;
         this.zeroBearing = Math.abs(relativeGunHeading) < 3;
