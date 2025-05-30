@@ -35,7 +35,6 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
             loadKnowledge();
             qInitialized = true;
         }
-        out.println("Loaded knowledge");
         setAdjustGunForRobotTurn(true);
         setAdjustRadarForGunTurn(true);
         setTurnRadarRight(Double.POSITIVE_INFINITY);
@@ -52,23 +51,25 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
     }
 
     private void loadKnowledge() {
-//        File file = getDataFile(KNOWLEDGE_FILE);
-//        if (file.exists()) {
-//            try (ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
-//                Q = (Map<Observation, Map<RobotAction, Double>>) ois.readObject();
-//            } catch (Exception e) {
-//                out.println("Exception loading knowledge");
-//                e.printStackTrace();
-//                Q = new HashMap<>();
-//            }
-//        }
+        out.println("Loading knowledge");
+        File file = getDataFile(KNOWLEDGE_FILE);
+        if (file.exists()) {
+            try (ObjectInputStream ois = new ObjectInputStream((new FileInputStream(file)))) {
+                Q = (Map<Observation, Map<RobotAction, Double>>) ois.readObject();
+            } catch (Exception e) {
+                out.println("Exception loading knowledge");
+                e.printStackTrace();
+                Q = new HashMap<>();
+            }
+        }
+        out.println("Knowledge loaded");
     }
 
     private void saveKnowledge() {
         try (ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(
                 new RobocodeFileOutputStream(getDataFile(KNOWLEDGE_FILE))))) {
             oos.writeObject(Q);
-            oos.fluFsh();
+            oos.flush();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
