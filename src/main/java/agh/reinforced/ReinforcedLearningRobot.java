@@ -12,10 +12,9 @@ import static robocode.Rules.MIN_BULLET_POWER;
 public class ReinforcedLearningRobot extends AdvancedRobot {
 
     private static final String KNOWLEDGE_FILE = "q.ser";
+    private static final String RESULTS_FILE = "results.csv";
 
     private static Map<Observation, Map<RobotAction, Double>> Q = new HashMap<>();
-    private static boolean qInitialized = false;
-
     private final double alpha = 0.2;
     private final double discountFactor = 0.2;
     private final double minExperimentRate = 0.1;
@@ -26,12 +25,17 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
     private final Random random = new Random();
     private ScannedRobotEvent last;
     boolean enemyVisible = false;
+    double enemyDistance = 0;
+    double gunHeadingDifference = 0;
+    double timesSeenEnemy = 0;
+    double damageDealt = 0;
+    double damageReceived = 0;
+    int totalObservations = 0;
 
+    @Override
     public void run() {
-        if (!qInitialized) {
-            loadKnowledge();
-            qInitialized = true;
-        }
+        loadKnowledge();
+        out.println("Loaded knowledge");
         setAdjustGunForRobotTurn(true);
         setAdjustRadarForGunTurn(true);
         setTurnRadarRight(Double.POSITIVE_INFINITY);
@@ -56,6 +60,8 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
             try (ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
                 Q = (Map<Observation, Map<RobotAction, Double>>) ois.readObject();
             } catch (Exception e) {
+                out.println("Exception loading knowledge");
+                e.printStackTrace();
                 Q = new HashMap<>();
             }
         }
@@ -129,7 +135,7 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
 
         if (random.nextDouble() < experimentRate || rewards == null || rewards.isEmpty()) {
             out.println("random");
-            if (Math.abs(obs.getOriginalRelativeGunHeading()) < 2) {
+            if (obs.getZeroBearing()) {
                 return new Fire(random.nextDouble(MIN_BULLET_POWER, MAX_BULLET_POWER));
             }
             return switch (random.nextInt(6)) {
@@ -148,6 +154,7 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
 
     private Observation observe() {
         ScannedRobotEvent closest = null;
+        totalObservations++;
         for (ScannedRobotEvent e : scannedRobotEvents) {
             if (closest == null || e.getDistance() < closest.getDistance()) {
                 closest = e;
@@ -163,6 +170,11 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
             enemyEnergyLoss = closest.getEnergy() - last.getEnergy() < 0;
         }
         last = closest;
+        if (enemyVisible) {
+            timesSeenEnemy++;
+            gunHeadingDifference += Math.abs(normalizeBearing(getHeading() - getGunHeading() + closest.getBearing()));
+            enemyDistance += closest.getDistance();
+        }
         return new Observation(
                 closest == null ? 10000 : closest.getDistance() / Math.max(getBattleFieldHeight(), getBattleFieldWidth()),
                 getEnergy(),
@@ -179,19 +191,54 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
         return angle;
     }
 
+    @Override
     public void onHitByBullet(HitByBulletEvent e) {
+        damageReceived += e.getPower();
         events.add(new EventRewardWrapper(e));
     }
 
+    @Override
     public void onBulletHit(BulletHitEvent e) {
+        damageDealt += e.getBullet().getPower();
         events.add(new EventRewardWrapper(e));
     }
 
+    @Override
     public void onScannedRobot(ScannedRobotEvent e) {
         scannedRobotEvents.add(e);
     }
 
+    private void saveStats(boolean win) {
+        enemyDistance /= timesSeenEnemy;
+        gunHeadingDifference /= timesSeenEnemy;
+        timesSeenEnemy /= totalObservations;
+        try (RobocodeFileWriter writer = new RobocodeFileWriter(getDataFile(RESULTS_FILE).getAbsolutePath(), true)) {
+            writer.write(enemyDistance + ";" + gunHeadingDifference + ";" + timesSeenEnemy + ";" +
+                    damageDealt + ";" + damageReceived + ";" + totalObservations + ";" + (win ? "1" : "0") + "\n");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        enemyDistance = 0;
+        gunHeadingDifference = 0;
+        timesSeenEnemy = 0;
+        damageDealt = 0;
+        damageReceived = 0;
+        totalObservations = 0;
+    }
+
+    @Override
+    public void onDeath(DeathEvent event) {
+        saveStats(false);
+    }
+
+    @Override
+    public void onWin(WinEvent e) {
+        saveStats(true);
+    }
+
+    @Override
     public void onBattleEnded(BattleEndedEvent e) {
         saveKnowledge();
+        out.println("Saved knowledge");
     }
 }

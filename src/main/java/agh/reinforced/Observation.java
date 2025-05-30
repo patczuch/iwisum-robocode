@@ -1,16 +1,19 @@
 package agh.reinforced;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Objects;
 
 public class Observation implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
     private final double enemyDistance;
     private final double energy;
     private final double heading;
     private final double relativeGunHeading;
     private final double enemyBearing;
     private final boolean enemyEnergyLoss;
-    private final double originalRelativeGunHeading;
+    private final boolean zeroBearing;
 
     public Observation(double enemyDistance, double energy, double heading, double relativeGunHeading, double enemyBearing,
                        boolean enemyEnergyLoss) {
@@ -20,7 +23,7 @@ public class Observation implements Serializable {
         this.relativeGunHeading = bucket(-180, 180, 8, relativeGunHeading);
         this.enemyBearing = bucket(-180, 180, 8, enemyBearing);
         this.enemyEnergyLoss = enemyEnergyLoss;
-        this.originalRelativeGunHeading = relativeGunHeading;
+        this.zeroBearing = Math.abs(relativeGunHeading) < 2;
     }
 
     @Override
@@ -32,12 +35,14 @@ public class Observation implements Serializable {
                 Double.compare(that.energy, energy) == 0 &&
                 Double.compare(that.heading, heading) == 0 &&
                 Double.compare(that.relativeGunHeading, relativeGunHeading) == 0 &&
-                Double.compare(that.enemyBearing, enemyBearing) == 0;
+                Double.compare(that.enemyBearing, enemyBearing) == 0 &&
+                that.enemyEnergyLoss == enemyEnergyLoss &&
+                that.zeroBearing == zeroBearing;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(enemyDistance, energy, heading, relativeGunHeading, enemyBearing);
+        return Objects.hash(enemyDistance, energy, heading, relativeGunHeading, enemyBearing, enemyEnergyLoss, zeroBearing);
     }
 
     public double distanceTo(Observation other) {
@@ -54,31 +59,7 @@ public class Observation implements Serializable {
         return (int) ((value - min) * buckets / (max - min));
     }
 
-    public double getEnemyDistance() {
-        return enemyDistance;
-    }
-
-    public double getEnergy() {
-        return energy;
-    }
-
-    public double getHeading() {
-        return heading;
-    }
-
-    public double getRelativeGunHeading() {
-        return relativeGunHeading;
-    }
-
-    public double getOriginalRelativeGunHeading() {
-        return originalRelativeGunHeading;
-    }
-
-    public double getEnemyBearing() {
-        return enemyBearing;
-    }
-
-    public boolean isEnemyEnergyLoss() {
-        return enemyEnergyLoss;
+    public boolean getZeroBearing() {
+        return zeroBearing;
     }
 }
