@@ -6,9 +6,6 @@ import java.awt.Color;
 import java.io.*;
 import java.util.*;
 
-import static robocode.Rules.MAX_BULLET_POWER;
-import static robocode.Rules.MIN_BULLET_POWER;
-
 public class ReinforcedLearningRobot extends AdvancedRobot {
 
     private static final String KNOWLEDGE_FILE = "q.ser";
@@ -51,9 +48,6 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
             Observation newObservation = observe();
             learn(action, currentObservation, newObservation, reward);
             currentObservation = newObservation;
-            if (experimentRate > minExperimentRate) {
-                experimentRate -= 0.0001;
-            }
         }
     }
 
@@ -87,7 +81,7 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
         }
 
         if (action.getClass().equals(Fire.class)) {
-            totalReward += 20;
+            totalReward += 100;
         }
 
         if (action.getClass().equals(TurnGunRight.class) || action.getClass().equals(TurnGunLeft.class)) {
@@ -103,12 +97,14 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
             }
             if (action.getClass().equals(GoAhead.class) || action.getClass().equals(GoBack.class)) {
                 if (Math.abs(last.getDistance()) > 50 && Math.abs(last.getDistance()) < 100) {
-                    totalReward += 100;
+                    totalReward += 600;
+                } else {
+                    totalReward -= 200;
                 }
             }
         }
         events.clear();
-        out.println("Executed: " + action.getClass().getSimpleName() + " | Reward: " + totalReward);
+        //out.println("Executed: " + action.getClass().getSimpleName() + " | Reward: " + totalReward);
         return totalReward;
     }
 
@@ -146,9 +142,9 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
             if (closest != null) {
                 rewards = Q.get(closest);
             }
-            out.println("closest one " + minDistance);
+            //out.println("closest one " + minDistance);
         } else {
-            out.println("not random");
+            //out.println("not random");
         }
 
         if (obs.getZeroBearing() && random.nextDouble() < 0.5) {
@@ -156,14 +152,14 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
         }
 
         if (random.nextDouble() < experimentRate || rewards == null || rewards.isEmpty()) {
-            out.println("random");
+            //out.println("random");
             return switch (random.nextInt(6)) {
-                case 0 -> new GoAhead((int) Math.round(50 + random.nextGaussian() * 30));
-                case 1 -> new TurnGunLeft((int) Math.round(30 + random.nextGaussian() * 30));
-                case 2 -> new TurnGunRight((int) Math.round(30 + random.nextGaussian() * 30));
-                case 3 -> new TurnLeft((int) Math.round(45 + random.nextGaussian() * 30));
-                case 4 -> new TurnRight((int) Math.round(45 + random.nextGaussian() * 30));
-                case 5 -> new GoBack((int) Math.round(50 + random.nextGaussian() * 30));
+                case 0 -> new GoAhead(random.nextInt(10) * 5);
+                case 1 -> new TurnGunLeft(random.nextInt(9) * 5);
+                case 2 -> new TurnGunRight(random.nextInt(9) * 5);
+                case 3 -> new TurnLeft(random.nextInt(9) * 5);
+                case 4 -> new TurnRight(random.nextInt(9) * 5);
+                case 5 -> new GoBack(random.nextInt(10) * 5);
                 default -> null;
             };
         }
@@ -224,10 +220,15 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
 
     @Override
     public void onScannedRobot(ScannedRobotEvent e) {
+        //System.out.println("Seen robot");
         scannedRobotEvents.add(e);
     }
 
     private void saveStats(boolean win) {
+        if (experimentRate > minExperimentRate) {
+            experimentRate -= 0.0001;
+        }
+
         enemyDistance /= timesSeenEnemy;
         gunHeadingDifference /= timesSeenEnemy;
         timesSeenEnemy /= totalObservations;
