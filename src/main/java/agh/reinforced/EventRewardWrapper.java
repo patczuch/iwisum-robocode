@@ -9,11 +9,21 @@ public class EventRewardWrapper {
 
     public EventRewardWrapper(HitByBulletEvent e) {
         this.event = e;
-        this.reward = -e.getPower() * 500;
+        this.reward = -e.getPower() * 300;
     }
 
     public EventRewardWrapper(BulletHitEvent e) {
         this.event = e;
         this.reward = e.getBullet().getPower() * 500;
+    }
+
+    public EventRewardWrapper(WinEvent e) {
+        this.event = e;
+        this.reward = 2000;
+    }
+
+    public EventRewardWrapper(DeathEvent e) {
+        this.event = e;
+        this.reward = -2000;
     }
 }

@@ -17,9 +17,9 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
     private static Map<Observation, Map<RobotAction, Double>> Q = new HashMap<>();
     private final double alpha = 0.2;
     private final double discountFactor = 0.2;
-    private final double minExperimentRate = 0.1;
+    private final double minExperimentRate = 0.2;
     private double experimentRate = 0.5;
-
+    private static boolean qInitialized = false;
     private final Set<EventRewardWrapper> events = new HashSet<>();
     private final Set<ScannedRobotEvent> scannedRobotEvents = new HashSet<>();
     private final Random random = new Random();
@@ -34,7 +34,10 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
 
     @Override
     public void run() {
-        loadKnowledge();
+        if (!qInitialized) {
+            loadKnowledge();
+            qInitialized = true;
+        }
         out.println("Loaded knowledge");
         setAdjustGunForRobotTurn(true);
         setAdjustRadarForGunTurn(true);
@@ -82,12 +85,27 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
         for (EventRewardWrapper event : events) {
             totalReward += event.reward;
         }
-        if (enemyVisible) {
-            totalReward -= Math.abs(normalizeBearing(getHeading() - getGunHeading() + last.getBearing()) / 180) * 20;
+
+        if (action.getClass().equals(Fire.class)) {
             totalReward += 20;
         }
+
+        if (action.getClass().equals(TurnGunRight.class) || action.getClass().equals(TurnGunLeft.class)) {
+            if (enemyVisible) {
+                totalReward += 50;
+            } else {
+                totalReward -= 20;
+            }
+        }
         if (last != null) {
-            totalReward += Math.max(0, 1 - Math.abs(last.getDistance() - 75) / 40) * 20;
+            if (action.getClass().equals(TurnGunRight.class) || action.getClass().equals(TurnGunLeft.class)) {
+                totalReward += (1 - Math.abs(normalizeBearing(getHeading() - getGunHeading() + last.getBearing()) / 180)) * 100;
+            }
+            if (action.getClass().equals(GoAhead.class) || action.getClass().equals(GoBack.class)) {
+                if (Math.abs(last.getDistance()) > 50 && Math.abs(last.getDistance()) < 100) {
+                    totalReward += 100;
+                }
+            }
         }
         events.clear();
         out.println("Executed: " + action.getClass().getSimpleName() + " | Reward: " + totalReward);
@@ -133,18 +151,19 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
             out.println("not random");
         }
 
+        if (obs.getZeroBearing() && random.nextDouble() < 0.5) {
+            return new Fire(1.5 + random.nextGaussian());
+        }
+
         if (random.nextDouble() < experimentRate || rewards == null || rewards.isEmpty()) {
             out.println("random");
-            if (obs.getZeroBearing()) {
-                return new Fire(random.nextDouble(MIN_BULLET_POWER, MAX_BULLET_POWER));
-            }
             return switch (random.nextInt(6)) {
-                case 0 -> new GoAhead(random.nextInt(50));
-                case 1 -> new TurnGunLeft(random.nextInt(45));
-                case 2 -> new TurnGunRight(random.nextInt(45));
-                case 3 -> new TurnLeft(random.nextInt(45));
-                case 4 -> new TurnRight(random.nextInt(45));
-                case 5 -> new GoBack(random.nextInt(50));
+                case 0 -> new GoAhead((int) Math.round(50 + random.nextGaussian() * 30));
+                case 1 -> new TurnGunLeft((int) Math.round(30 + random.nextGaussian() * 30));
+                case 2 -> new TurnGunRight((int) Math.round(30 + random.nextGaussian() * 30));
+                case 3 -> new TurnLeft((int) Math.round(45 + random.nextGaussian() * 30));
+                case 4 -> new TurnRight((int) Math.round(45 + random.nextGaussian() * 30));
+                case 5 -> new GoBack((int) Math.round(50 + random.nextGaussian() * 30));
                 default -> null;
             };
         }
@@ -227,12 +246,14 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
     }
 
     @Override
-    public void onDeath(DeathEvent event) {
+    public void onDeath(DeathEvent e) {
+        events.add(new EventRewardWrapper(e));
         saveStats(false);
     }
 
     @Override
     public void onWin(WinEvent e) {
+        events.add(new EventRewardWrapper(e));
         saveStats(true);
     }
 
