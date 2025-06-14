@@ -7,16 +7,17 @@ import java.awt.*;
 import java.io.*;
 import java.util.*;
 
-public class ReinforcedLearningRobot extends AdvancedRobot {
+public class ReinforcedLearningRobotTuning3 extends AdvancedRobot {
 
     private static final String KNOWLEDGE_FILE = "q.ser";
     private static final String RESULTS_FILE = "results.csv";
 
     private static Map<Observation, Map<RobotAction, Double>> Q = new HashMap<>();
-    private final double alpha = 0.5;
-    private final double discountFactor = 0.1;
-    private static double startExperimentRate = 0.5;
+    private double alpha = 0.2;
+    private double discountFactor = 0.2;
+    private double minExperimentRate = 0.2;
     private double experimentRate = 0.5;
+    private double startExperimentRate;
     private static boolean qInitialized = false;
     private final Set<EventRewardWrapper> events = new HashSet<>();
     private final Set<ScannedRobotEvent> scannedRobotEvents = new HashSet<>();
@@ -29,21 +30,50 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
     double damageDealt = 0;
     double damageReceived = 0;
     int totalObservations = 0;
+
+    static int game = 0;
+    int gamesEach = 10000;
+    static int parameter = 0;
     static int stats = 0;
+
+    private final double[][] parameters = {
+            {0.5, 0.1, 0.3, 750, 600, 50},
+            {0.5, 0.1, 0.3, 250, 600, 100},
+            {0.5, 0.1, 0.5, 250, 300, 100},
+            {0.5, 0.1, 0.5, 750, 300, 50},
+            {0.4, 0.1, 0.1, 750, 300, 100}
+    };
+
+    int bulletHitReward = 0;
+    int hitByBulletPenalty = 0;
+    int gunAlignmentMultiplier = 0;
 
     @Override
     public void run() {
         if (!qInitialized) {
-            //loadKnowledge();
             Q = new HashMap<>();
             qInitialized = true;
         }
-
-        experimentRate = startExperimentRate - stats * 0.0001;
+        if (game >= gamesEach) {
+            game = 0;
+            parameter++;
+            stats = 0;
+            Q = new HashMap<>();
+        }
+        game++;
+        if (parameter >= parameters.length) {
+            System.out.println("All done");
+            return;
+        }
+        alpha = parameters[parameter][0];
+        discountFactor = parameters[parameter][1];
+        experimentRate = parameters[parameter][2] - stats * 0.00005;
         if (experimentRate < 0.05)
             experimentRate = 0.05;
-
-        System.out.println(experimentRate);
+        bulletHitReward = (int)parameters[parameter][3];
+        hitByBulletPenalty = (int)parameters[parameter][4];
+        gunAlignmentMultiplier = (int)parameters[parameter][5];
+        startExperimentRate = experimentRate;
 
         setAdjustGunForRobotTurn(true);
         setAdjustRadarForGunTurn(true);
@@ -57,31 +87,6 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
             Observation newObservation = observe();
             learn(action, currentObservation, newObservation, reward);
             currentObservation = newObservation;
-        }
-    }
-
-    private void loadKnowledge() {
-        out.println("Loading knowledge");
-        File file = getDataFile(KNOWLEDGE_FILE);
-        if (file.exists()) {
-            try (ObjectInputStream ois = new ObjectInputStream((new FileInputStream(file)))) {
-                Q = (Map<Observation, Map<RobotAction, Double>>) ois.readObject();
-            } catch (Exception e) {
-                out.println("Exception loading knowledge");
-                e.printStackTrace();
-                Q = new HashMap<>();
-            }
-        }
-        out.println("Knowledge loaded");
-    }
-
-    private void saveKnowledge() {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(
-                new RobocodeFileOutputStream(getDataFile(KNOWLEDGE_FILE))))) {
-            oos.writeObject(Q);
-            oos.flush();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -108,7 +113,7 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
         }
         if (last != null) {
             if (action.getClass().equals(TurnGunRight.class) || action.getClass().equals(TurnGunLeft.class)) {
-                totalReward += (1 - Math.abs(normalizeBearing(getHeading() - getGunHeading() + last.getBearing()) / 180)) * 50;
+                totalReward += (1 - Math.abs(normalizeBearing(getHeading() - getGunHeading() + last.getBearing()) / 180)) * gunAlignmentMultiplier;
             }
         }
         events.clear();
@@ -222,13 +227,13 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
     @Override
     public void onHitByBullet(HitByBulletEvent e) {
         damageReceived += e.getPower();
-        events.add(new EventRewardWrapper(e, 300));
+        events.add(new EventRewardWrapper(e, hitByBulletPenalty));
     }
 
     @Override
     public void onBulletHit(BulletHitEvent e) {
         damageDealt += e.getBullet().getPower();
-        events.add(new EventRewardWrapper(e, 750));
+        events.add(new EventRewardWrapper(e, bulletHitReward));
     }
 
     @Override
@@ -239,11 +244,19 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
 
     private void saveStats(boolean win) {
         stats++;
+        System.out.println(experimentRate);
+
+        if (parameter >= parameters.length) {
+            return;
+        }
 
         enemyDistance /= timesSeenEnemy;
         gunHeadingDifference /= timesSeenEnemy;
         timesSeenEnemy /= totalObservations;
-        try (RobocodeFileWriter writer = new RobocodeFileWriter(getDataFile(RESULTS_FILE).getAbsolutePath(), true)) {
+        try (RobocodeFileWriter writer = new RobocodeFileWriter(getDataFile(
+                "res_" + alpha + "_" + discountFactor + "_" + parameters[parameter][2] + "_" +
+                        bulletHitReward + "_" + hitByBulletPenalty + "_" + gunAlignmentMultiplier + ".csv"
+        ).getAbsolutePath(), true)) {
             writer.write(enemyDistance + ";" + gunHeadingDifference + ";" + timesSeenEnemy + ";" +
                     damageDealt + ";" + damageReceived + ";" + totalObservations + ";" + (win ? "1" : "0") + "\n");
         } catch (IOException e) {
@@ -267,11 +280,5 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
     public void onWin(WinEvent e) {
         events.add(new EventRewardWrapper(e));
         saveStats(true);
-    }
-
-    @Override
-    public void onBattleEnded(BattleEndedEvent e) {
-        saveKnowledge();
-        out.println("Saved knowledge");
     }
 }

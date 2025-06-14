@@ -7,7 +7,7 @@ import java.awt.*;
 import java.io.*;
 import java.util.*;
 
-public class ReinforcedLearningRobot extends AdvancedRobot {
+public class ReinforcedLearningRobotLoad extends AdvancedRobot {
 
     private static final String KNOWLEDGE_FILE = "q.ser";
     private static final String RESULTS_FILE = "results.csv";
@@ -34,16 +34,11 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
     @Override
     public void run() {
         if (!qInitialized) {
-            //loadKnowledge();
-            Q = new HashMap<>();
+            loadKnowledge();
             qInitialized = true;
         }
 
-        experimentRate = startExperimentRate - stats * 0.0001;
-        if (experimentRate < 0.05)
-            experimentRate = 0.05;
-
-        System.out.println(experimentRate);
+        experimentRate = 0;
 
         setAdjustGunForRobotTurn(true);
         setAdjustRadarForGunTurn(true);
@@ -73,16 +68,6 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
             }
         }
         out.println("Knowledge loaded");
-    }
-
-    private void saveKnowledge() {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(
-                new RobocodeFileOutputStream(getDataFile(KNOWLEDGE_FILE))))) {
-            oos.writeObject(Q);
-            oos.flush();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     private double performAction(RobotAction action) {
@@ -239,22 +224,6 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
 
     private void saveStats(boolean win) {
         stats++;
-
-        enemyDistance /= timesSeenEnemy;
-        gunHeadingDifference /= timesSeenEnemy;
-        timesSeenEnemy /= totalObservations;
-        try (RobocodeFileWriter writer = new RobocodeFileWriter(getDataFile(RESULTS_FILE).getAbsolutePath(), true)) {
-            writer.write(enemyDistance + ";" + gunHeadingDifference + ";" + timesSeenEnemy + ";" +
-                    damageDealt + ";" + damageReceived + ";" + totalObservations + ";" + (win ? "1" : "0") + "\n");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        enemyDistance = 0;
-        gunHeadingDifference = 0;
-        timesSeenEnemy = 0;
-        damageDealt = 0;
-        damageReceived = 0;
-        totalObservations = 0;
     }
 
     @Override
@@ -267,11 +236,5 @@ public class ReinforcedLearningRobot extends AdvancedRobot {
     public void onWin(WinEvent e) {
         events.add(new EventRewardWrapper(e));
         saveStats(true);
-    }
-
-    @Override
-    public void onBattleEnded(BattleEndedEvent e) {
-        saveKnowledge();
-        out.println("Saved knowledge");
     }
 }
